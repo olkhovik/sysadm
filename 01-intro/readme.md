@@ -3,4 +3,4 @@
 _Задание №1 - Подготовка рабочей среды_
 
 а) **Terraform**
-![](image/terraform.png "Terraform")
+![Terraform](image/terraform.png "Terraform")
