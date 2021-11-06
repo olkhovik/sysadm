@@ -114,6 +114,7 @@ plugins.go:1
 Кто автор функции `synchronizedWriters`?
 
 1. Найдём первый коммит, где упоминается функция `synchronizedWriters`:
+
 **`git log -S synchronizedWriters --oneline --reverse`**
 ```
 5ac311e2a main: synchronize writes to VT100-faker on Windows
@@ -121,10 +122,15 @@ fd4f7eb0b remove prefixed io
 bdfea50cc remove unused
 ```
 2. Смотрим коммит 5ac311e2a, и видим в нём добавление функции `synchronizedWriters`:
+
 **`git show 5ac311e2a`**
-Автор функции `synchronizedWriters` Martin Atkins
+
+Автор функции `synchronizedWriters` Martin Atkins.
 ```
 commit 5ac311e2a91e381e2f52234668b49ba670aa0fe5
 Author: Martin Atkins <mart@degeneration.co.uk>
 Date:   Wed May 3 16:25:41 2017 -0700
 ```
+
+## _Подпись коммитов_
+Настроил работу с GnuPG, ключами, в локальном репозитории и на Github.
