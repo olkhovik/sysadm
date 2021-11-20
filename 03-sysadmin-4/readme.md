@@ -6,23 +6,172 @@
 - предусмотрите возможность добавления опций к запускаемому процессу через внешний файл (посмотрите, например, на `systemctl cat cron`),
 - удостоверьтесь, что с помощью systemctl процесс корректно стартует, завершается, а после перезагрузки автоматически поднимается.
 
+1. Загрузил последнюю версию с Github, распаковал, скопировал в место установки, создал пользователя, от имени которого будет запускаться node_exporter:
+```
+vagrant@vagrant:~$ wget https://github.com/prometheus/node_exporter/releases/download/v1.3.0/node_exporter-1.3.0.linux-amd64.tar.gz
+...
+vagrant@vagrant:~$ tar -xvf node_exporter-1.3.0.linux-amd64.tar.gz
+vagrant@vagrant:~$ cp node_exporter-1.3.0.linux-amd64/node_exporter /usr/local/bin
+vagrant@vagrant:~$ sudo useradd --no-create-home --shell /bin/false node_exporter
+```
+2. Создал unit-файл:
+```vagrant@vagrant:~$ sudo systemctl edit --full --force node_exporter.service
+vagrant@vagrant:~$ cat /etc/systemd/system/node_exporter.service
+[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+EnvironmentFile=/etc/default/node_exporter
+ExecStart=/usr/local/bin/node_exporter
+[Install]
+WantedBy=multi-user.target
+```
+3. Проверил создание сервиса, добавил в автозагрузку, запустил, проверил внешний файл, остановил:
+```
+vagrant@vagrant:~$ sudo systemctl status node_exporter
+● node_exporter.service - Node Exporter
+     Loaded: loaded (/etc/systemd/system/node_exporter.service; disabled; vendor preset: enabled)
+     Active: inactive (dead)
+vagrant@vagrant:~$ sudo systemctl is-enabled node_exporter
+disabled
+vagrant@vagrant:~$ sudo systemctl enable node_exporter
+Created symlink /etc/systemd/system/multi-user.target.wants/node_exporter.service → /etc/systemd/system/node_exporter.service.
+vagrant@vagrant:~$ sudo systemctl is-enabled node_exporter
+enabled
+vagrant@vagrant:~$ sudo systemctl start node_exporter
+vagrant@vagrant:~$ sudo systemctl status node_exporter
+● node_exporter.service - Node Exporter
+     Loaded: loaded (/etc/systemd/system/node_exporter.service; enabled; vendor preset: enabled)
+     Active: active (running) since Sat 2021-11-20 07:42:41 UTC; 3s ago
+   Main PID: 1324 (node_exporter)
+      Tasks: 4 (limit: 1071)
+     Memory: 2.3M
+     CGroup: /system.slice/node_exporter.service
+             └─1324 /usr/local/bin/node_exporter
 
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=node_exporter.go:115 level=info collector=thermal_zone
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=node_exporter.go:115 level=info collector=time
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=node_exporter.go:115 level=info collector=timex
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=node_exporter.go:115 level=info collector=udp_queues
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=node_exporter.go:115 level=info collector=uname
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=node_exporter.go:115 level=info collector=vmstat
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=node_exporter.go:115 level=info collector=xfs
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=node_exporter.go:115 level=info collector=zfs
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=node_exporter.go:199 level=info msg="Listening on" address=:9100
+Nov 20 07:42:41 vagrant node_exporter[1324]: ts=2021-11-20T07:42:41.038Z caller=tls_config.go:195 level=info msg="TLS is disabled." http2=false
+vagrant@vagrant:~$ sudo cat /proc/1324/environ
+LANG=en_US.UTF-8LANGUAGE=en_US:PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/binHOME=/home/node_exporterLOGNAME=node_exporterUSER=node_exporterINVOCATION_ID=a78a8da427f2416c9226db2d699f7fc1JOURNAL_STREAM=9:31779
+vagrant@vagrant:~$ sudo systemctl stop node_exporter
+vagrant@vagrant:~$ sudo shutdown -r now
+```
+4. Проверил автостарт после перезагрузки системы:
+```
+vagrant@vagrant:~$ ps aux | grep node_exporter
+node_ex+     784  0.0  1.0 715708 10836 ?        Ssl  07:45   0:00 /usr/local/bin/node_exporter
+vagrant      887  0.0  0.0   9032   740 pts/0    S+   07:47   0:00 grep --color=auto node_exporter
+vagrant@vagrant:~$ sudo systemctl status node_exporter
+● node_exporter.service - Node Exporter
+     Loaded: loaded (/etc/systemd/system/node_exporter.service; enabled; vendor preset: enabled)
+     Active: active (running) since Sat 2021-11-20 07:45:59 UTC; 1min 8s ago
+   Main PID: 784 (node_exporter)
+      Tasks: 5 (limit: 1071)
+     Memory: 13.1M
+     CGroup: /system.slice/node_exporter.service
+             └─784 /usr/local/bin/node_exporter
 
-_Выполнено_
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.569Z caller=node_exporter.go:115 level=info collector=thermal_zone
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.569Z caller=node_exporter.go:115 level=info collector=time
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.569Z caller=node_exporter.go:115 level=info collector=timex
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.569Z caller=node_exporter.go:115 level=info collector=udp_queues
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.569Z caller=node_exporter.go:115 level=info collector=uname
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.569Z caller=node_exporter.go:115 level=info collector=vmstat
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.569Z caller=node_exporter.go:115 level=info collector=xfs
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.569Z caller=node_exporter.go:115 level=info collector=zfs
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.572Z caller=node_exporter.go:199 level=info msg="Listening on" address=:9100
+Nov 20 07:45:59 vagrant node_exporter[784]: ts=2021-11-20T07:45:59.573Z caller=tls_config.go:195 level=info msg="TLS is disabled." http2=false
+```
 
 ## _Задача №2_
 **Ознакомьтесь с опциями node_exporter и выводом `/metrics` по-умолчанию. Приведите несколько опций, которые вы бы выбрали для базового мониторинга хоста по CPU, памяти, диску и сети.**
 
+1. Пробросил порт 9100 на хостовую машину:
+```
+vagrant@vagrant:~$ sudo lsof -i :9100
+COMMAND   PID          USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+node_expo 785 node_exporter    3u  IPv6  23346      0t0  TCP *:9100 (LISTEN)
+node_expo 785 node_exporter    7u  IPv6  30553      0t0  TCP vagrant:9100->_gateway:51303 (ESTABLISHED)
+```
 
+![](image/node_exporter.png)
+
+
+2. Опции для базового мониторинга хоста по CPU, памяти, диску и сети:
+- Прцессор
+```
+node_cpu_seconds_total{cpu="0",mode="idle"} 941.17
+node_cpu_seconds_total{cpu="0",mode="system"} 3.17
+node_cpu_seconds_total{cpu="0",mode="user"} 1.78
+node_cpu_seconds_total{cpu="1",mode="idle"} 939.78
+node_cpu_seconds_total{cpu="1",mode="system"} 2.5
+node_cpu_seconds_total{cpu="1",mode="user"} 2.95
+```
+- Память
+```
+node_memory_MemAvailable_bytes 7.76192e+08
+node_memory_MemFree_bytes 6.6756608e+08
+node_memory_MemTotal_bytes 1.028694016e+09
+```
+- Диски
+```
+node_disk_read_bytes_total{device="sda"} 2.46756352e+08
+node_disk_read_time_seconds_total{device="sda"} 0.9470000000000001
+node_disk_written_bytes_total{device="sda"} 8.48384e+06
+node_disk_write_time_seconds_total{device="sda"} 0.804
+node_disk_io_time_seconds_total{device="sda"} 3.028
+
+```
+- Сеть
+```
+node_network_receive_bytes_total{device="eth0"} 34732
+node_network_receive_errs_total{device="eth0"} 0
+node_network_transmit_bytes_total{device="eth0"} 51946
+node_network_transmit_errs_total{device="eth0"} 0
+```
 
 ## _Задача №3_
 **Установите в свою виртуальную машину Netdata. Воспользуйтесь готовыми пакетами для установки (`sudo apt install -y netdata`). После успешной установки:**
 
 - в конфигурационном файле `/etc/netdata/netdata.conf` в секции [web] замените значение с localhost на `bind to = 0.0.0.0`,
-- добавьте в Vagrantfile проброс порта Netdata на свой локальный компьютер и сделайте `vagrant reload`:
+- добавьте в Vagrantfile проброс порта Netdata на свой локальный компьютер `config.vm.network "forwarded_port", guest: 19999, host: 19999` и сделайте `vagrant reload`:
 
-`config.vm.network "forwarded_port", guest: 19999, host: 19999`
+**После успешной перезагрузки в браузере на своем ПК (не в виртуальной машине) вы должны суметь зайти на localhost:19999. Ознакомьтесь с метриками, которые по умолчанию собираются Netdata и с комментариями, которые даны к этим метрикам.**
 
+1. Netdata установил, конфиги изменил, сделал `vagrant reload`:
+
+```
+vagrant@vagrant:~$ sudo lsof -i :19999
+COMMAND PID    USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+netdata 784 netdata    4u  IPv4  23460      0t0  TCP *:19999 (LISTEN)
+netdata 784 netdata   21u  IPv4  30758      0t0  TCP vagrant:19999->_gateway:51292 (ESTABLISHED)
+netdata 784 netdata   23u  IPv4  30760      0t0  TCP vagrant:19999->_gateway:51293 (ESTABLISHED)
+netdata 784 netdata   25u  IPv4  30762      0t0  TCP vagrant:19999->_gateway:51294 (ESTABLISHED)
+netdata 784 netdata   26u  IPv4  30548      0t0  TCP vagrant:19999->_gateway:51295 (ESTABLISHED)
+netdata 784 netdata   27u  IPv4  30550      0t0  TCP vagrant:19999->_gateway:51296 (ESTABLISHED)
+netdata 784 netdata   28u  IPv4  29264      0t0  TCP vagrant:19999->_gateway:51262 (ESTABLISHED)
+```
+2. Зашёл на хостовой машине на адрес http://localhost:19999/:
+
+![](image/netdata_1.png)
+
+![](image/netdata_2.png)
+
+![](image/netdata_3.png)
+
+![](image/netdata_4.png)
 
 
 ## _Задача №4_
