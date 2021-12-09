@@ -57,6 +57,7 @@
 ```
 host remote-server
 hostname 213.189.209.10
+IdentityFile ~/.ssh/id_rsa-1
 user od
 port 5216
 ``` 
