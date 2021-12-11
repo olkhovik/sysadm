@@ -136,3 +136,6 @@ if ! grep -iqE "$commit_regex" "$1"; then
 fi
 exit 0
 ```
+Тестируем:
+
+![](git_hook.png)
