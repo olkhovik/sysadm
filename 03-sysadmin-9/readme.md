@@ -69,7 +69,7 @@
 - добавляем в `/etc/ssh/ssh_config` строки:
 ```
 host remote-server
-hostname 213.189.209.10
+hostname 213.xxx.xxx.10
 IdentityFile ~/.ssh/id_rsa-1
 user od
 port 5216
